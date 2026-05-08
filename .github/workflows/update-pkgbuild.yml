@@ -1,0 +1,134 @@
+name: Update PKGBUILD
+
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    container:
+      image: archlinux:latest
+    defaults:
+      run:
+        working-directory: ${{ github.workspace }}
+
+    steps:
+      - name: Install dependencies
+        working-directory: /
+        run: pacman -Syu --noconfirm --needed git python python-yaml curl openssh sudo
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: git config --global --add safe.directory '*'
+
+      - name: Check for new version
+        id: check
+        run: |
+          python3 << 'PYEOF'
+          import urllib.request, yaml, re, os, base64
+
+          with urllib.request.urlopen('https://releases.linear.app/latest.yml') as r:
+              data = yaml.safe_load(r.read().decode())
+
+          new_version = data['version']
+          path = data['path']
+          sha512_b64 = data['sha512']
+          sha512_hex = base64.b64decode(sha512_b64).hex()
+
+          with open('PKGBUILD') as f:
+              content = f.read()
+
+          m = re.search(r'^pkgver=(.+)$', content, re.MULTILINE)
+          current_version = m.group(1).strip() if m else ''
+
+          needs_update = new_version != current_version
+          print(f"Current: {current_version}, Latest: {new_version}, Update needed: {needs_update}")
+
+          out = os.environ['GITHUB_OUTPUT']
+          with open(out, 'a') as f:
+              f.write(f"new_version={new_version}\n")
+              f.write(f"sha512={sha512_hex}\n")
+              f.write(f"needs_update={'true' if needs_update else 'false'}\n")
+          PYEOF
+
+      - name: Update PKGBUILD
+        if: steps.check.outputs.needs_update == 'true'
+        env:
+          NEW_VERSION: ${{ steps.check.outputs.new_version }}
+          SHA512: ${{ steps.check.outputs.sha512 }}
+        run: |
+          python3 << 'PYEOF'
+          import re, os
+
+          new_version = os.environ['NEW_VERSION']
+          sha512 = os.environ['SHA512']
+
+          with open('PKGBUILD') as f:
+              content = f.read()
+
+          content = re.sub(r'^pkgver=.+$', f'pkgver={new_version}', content, flags=re.MULTILINE)
+          content = re.sub(r'^pkgrel=.+$', 'pkgrel=1', content, flags=re.MULTILINE)
+          content = re.sub(
+              r"sha512sums=\('[a-f0-9]+'\s*\n\s*'SKIP'\)",
+              f"sha512sums=('{sha512}'\n            'SKIP')",
+              content,
+              flags=re.DOTALL,
+          )
+
+          with open('PKGBUILD', 'w') as f:
+              f.write(content)
+
+          print(f"Updated PKGBUILD: {new_version}")
+          PYEOF
+
+      - name: Generate .SRCINFO
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          useradd -m builder
+          cp PKGBUILD /home/builder/PKGBUILD
+          sudo -u builder bash -c 'cd ~ && makepkg --printsrcinfo' > .SRCINFO
+          cat .SRCINFO
+
+      - name: Commit and push to GitHub
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add PKGBUILD .SRCINFO
+          git commit -m "chore: update to v${{ steps.check.outputs.new_version }}"
+          git push
+
+      - name: Push to AUR
+        if: steps.check.outputs.needs_update == 'true'
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$AUR_SSH_KEY" > ~/.ssh/aur_key
+          chmod 600 ~/.ssh/aur_key
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+
+          cat >> ~/.ssh/config << 'EOF'
+          Host aur.archlinux.org
+            IdentityFile ~/.ssh/aur_key
+            User aur
+            StrictHostKeyChecking accept-new
+          EOF
+          chmod 600 ~/.ssh/config
+
+          TMPDIR=$(mktemp -d)
+          cp PKGBUILD .SRCINFO "$TMPDIR/"
+          cd "$TMPDIR"
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update to v${{ steps.check.outputs.new_version }}"
+          git push --force ssh://aur@aur.archlinux.org/linear-bin.git HEAD:master
