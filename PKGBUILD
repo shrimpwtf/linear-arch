@@ -2,7 +2,7 @@
 # Linear Desktop for Linux (unofficial)
 
 pkgname=linear-bin
-pkgver=1.32.1
+pkgver=1.32.2
 pkgrel=1
 pkgdesc="Linear - Issue tracking & project management (unofficial Linux build)"
 arch=('x86_64')
@@ -15,7 +15,7 @@ conflicts=('linear-desktop' 'linear-desktop-bin' 'linear-desktop-git')
 _ghraw="https://raw.githubusercontent.com/shrimpwtf/linear-arch/main"
 source=("Linear-Setup-${pkgver}.exe::https://releases.linear.app/Linear%20Setup%20${pkgver}.exe"
         "patch-main.py::${_ghraw}/patch-main.py")
-sha512sums=('1b7edb1d511bf34092cc2c5cf3dca97ff795e3fbbcdd5411aa0e6925fd6001fa8aea735a764ca255e79dc323d4f3590c5339b9014e15df75014b04296d574fb2'
+sha512sums=('c5f17790a19f2f1458181b1082306e4ec26c2232af8b043a82b99fb644dfe9b017fc74cb272ae81242c947de07c57937b4dd674f89f140121127bd9ede408d43'
             'SKIP')
 
 prepare() {

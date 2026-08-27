@@ -1,6 +1,6 @@
 pkgbase = linear-bin
 	pkgdesc = Linear - Issue tracking & project management (unofficial Linux build)
-	pkgver = 1.32.1
+	pkgver = 1.32.2
 	pkgrel = 1
 	url = https://linear.app
 	arch = x86_64
@@ -14,9 +14,9 @@ pkgbase = linear-bin
 	conflicts = linear-desktop
 	conflicts = linear-desktop-bin
 	conflicts = linear-desktop-git
-	source = Linear-Setup-1.32.1.exe::https://releases.linear.app/Linear%20Setup%201.32.1.exe
+	source = Linear-Setup-1.32.2.exe::https://releases.linear.app/Linear%20Setup%201.32.2.exe
 	source = patch-main.py::https://raw.githubusercontent.com/shrimpwtf/linear-arch/main/patch-main.py
-	sha512sums = 1b7edb1d511bf34092cc2c5cf3dca97ff795e3fbbcdd5411aa0e6925fd6001fa8aea735a764ca255e79dc323d4f3590c5339b9014e15df75014b04296d574fb2
+	sha512sums = c5f17790a19f2f1458181b1082306e4ec26c2232af8b043a82b99fb644dfe9b017fc74cb272ae81242c947de07c57937b4dd674f89f140121127bd9ede408d43
 	sha512sums = SKIP
 
 pkgname = linear-bin
